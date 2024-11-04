@@ -1,11 +1,11 @@
-import math as m
+import math
 
 
 def calc_discharge(b, h, k_st, m_bank, S):
     area = h * (b + h * m_bank)
-    wetted_perimeter = b + 2 * h * m.sqrt(m_bank**2 + 1)
+    wetted_perimeter = b + 2 * h * math.sqrt(m_bank**2 + 1)
     hydraulic_radius = area / wetted_perimeter
-    discharge = k_st * m.sqrt(S) * hydraulic_radius**(2/3) * area
+    discharge = k_st * math.sqrt(S) * hydraulic_radius**(2/3) * area
     return discharge
 
 
@@ -18,25 +18,29 @@ def calc_discharge2(b, h, m_bank, S, **kwargs):
         if "k_st" in k[0]:
             k_st = k[1]
     area = h * (b + h * m_bank)
-    wetted_perimeter = b + 2 * h * m.sqrt(m_bank**2 + 1)
+    wetted_perimeter = b + 2 * h * math.sqrt(m_bank**2 + 1)
     hydraulic_radius = area / wetted_perimeter
-    discharge = k_st * m.sqrt(S) * hydraulic_radius**(2/3) * area
+    discharge = k_st * math.sqrt(S) * hydraulic_radius**(2/3) * area
     return discharge
 
 
-def interpolate_h(Q, b, m, S, **kwargs):
+def interpolate_h(Q, b, m_bank, S):
     h = 1.0
     eps = 1.0
-    while eps > 10**-3:
+    iteration_count = 0
+    while eps > 10**-3 and iteration_count < 100:
         A = h * (b + h * m_bank)
-        P = b + 2 * h * m.sqrt(m_bank ** 2 + 1)
-        Qk = A ** (5 / 3) * sqrt(S) / (n_m * P ** (2 / 3))
+        P = b + 2 * h * math.sqrt(m_bank ** 2 + 1)
+        Qk = A ** (5 / 3) * math.sqrt(S) / (n_m * P ** (2 / 3))
         eps = abs(Q - Qk) / Q
-        dA_dh = b + 2 * m * h
-        dP_dh = 2 * m.sqrt(m ** 2 + 1)
-        F = n_m * Q * P ** (2 / 3) - A ** (5 / 3) * m.sqrt(S)
-        dF_dh = 2 / 3 * n_m * Q * P ** (-1 / 3) * dP_dh - 5 / 3 * A ** (2 / 3) * m.sqrt(S) * dA_dh
+        dA_dh = b + 2 * m_bank * h
+        dP_dh = 2 * math.sqrt(m_bank ** 2 + 1)
+        F = n_m * Q * P ** (2 / 3) - A ** (5 / 3) * math.sqrt(S)
+        dF_dh = 2 / 3 * n_m * Q * P ** (-1 / 3) * dP_dh - 5 / 3 * A ** (2 / 3) * math.sqrt(S) * dA_dh
         h = abs(h - F / dF_dh)
+        iteration_count += 1
+    return h, eps, Qk, iteration_count
+
 
 if __name__ == '__main__':
     # input parameters
@@ -49,6 +53,7 @@ if __name__ == '__main__':
 
 print(calc_discharge(b, 2.0, k_st, m_bank, S_0))
 print(calc_discharge2(b, 2.0, m_bank, S_0,k_st=20))
+print(interpolate_h(Q, b, m_bank, S_0))
 
     # call the solver with user-defined channel geometry and discharge
     #h_n = interpolate_h(Q, b, n_m=n_m, m_bank=m_bank, S0=S_0)
