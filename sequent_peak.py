@@ -2,7 +2,7 @@ import glob
 import os
 import numpy as np
 from scipy.signal import argrelextrema
-
+from scipy.signal import find_peaks
 
 def plot_storage_curve(array_1d, min_indices, max_indices, min_values, max_values):
     """
@@ -109,37 +109,43 @@ def daily2monthly(daily_flow_series):
     return np.array(monthly_stats)
 
 
-def find_seasonal_extrema(storage_line):
-    pass
-
-
 def sequent_peak(in_vol_series, out_vol_target):
     # create storage-difference SD dictionary
     SD_dict = {}
+
     for year, monthly_volume in in_vol_series.items():
         # add a new dictionary entry for every year
         SD_dict.update({year: []})
         for month_no, in_vol in enumerate(monthly_volume):
             # append one list entry per month (i.e., In_m - Out_m)
             SD_dict[year].append(in_vol - out_vol_target[month_no])
+
     SD_line = []
     for year in SD_dict.keys():
         for vol in SD_dict[year]:
             SD_line.append(vol)
+
     storage_line = np.cumsum(SD_line)
-    seas_max_index = np.array(argrelextrema(storage_line, np.greater, order=12)[0])
-    seas_min_index = np.array(argrelextrema(storage_line, np.less, order=12)[0])
-    seas_max_vol = np.take(storage_line, seas_max_index)
-    seas_min_vol = np.take(storage_line, seas_min_index)
-    plot_storage_curve(storage_line, seas_min_index, seas_max_index, seas_min_vol, seas_max_vol)
-    required_volume = 0.0
-    for i, vol in enumerate(list(seas_max_vol)):
+
+    # Find local maxima and minima using find_peaks
+    # Find_peaks returns two outputs, indicies and properties. Here we use , _ to ignore the properties
+    # returned by the find_peaks function.
+    max_indices, _ = find_peaks(storage_line)
+    min_indices, _ = find_peaks(-storage_line)
+
+    max_volumes = storage_line[max_indices]
+    min_volumes = storage_line[min_indices]
+
+    plot_storage_curve(storage_line, min_indices, max_indices, min_volumes, max_volumes)
+
+    required_storage = 0.0
+    for i, vol in enumerate(max_volumes):
         try:
-            if (vol - seas_min_vol[i]) > required_volume:
-                required_volume = vol - seas_min_vol[i]
+            if (vol - min_volumes[i]) > required_storage:
+                required_storage = vol - min_volumes[i]
         except IndexError:
             print("Reached end of storage line.")
-    return required_volume
+    return required_storage
 
 
 if __name__ == "__main__":
