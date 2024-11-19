@@ -1,16 +1,18 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
+# Load the dataset
 file = 'bedload_dataset.txt'
 data = pd.read_csv(file)
 
-print(data.head(3))
+# Prints first 3 rows of data and headers. Commented out
+#print(data.head(3))
 
-print("Sum of missing values: " + str(data.isnull().sum()))
+#print("Sum of missing values: " + str(data.isnull().sum()))
 
-print("Sum of duplicated rows: " + str(data.duplicated().sum()))
+#print("Sum of duplicated rows: " + str(data.duplicated().sum()))
 
-print(data.describe())
+#print(data.describe())
 
 # Morphology section is not in data.describe() because it is a string.
 
@@ -37,6 +39,7 @@ import scipy.stats as stats
 
 import numpy as np
 
+# Select numeric columns
 numeric_columns = data.select_dtypes(include=[np.number])
 
 # this tells us that all of the results are not normally distributed, which we should expect for a natural dataset
@@ -64,8 +67,34 @@ def create_qq_plots(df):
 create_qq_plots(numeric_columns)
 
 
-# We define a list of possible distributions, but we can use the fitter function(?) to automatically fit to
+# We define a list of possible distributions, but we can use the fitter package to automatically fit to
 # a distribution. This is Homework !
+
+from fitter import Fitter, get_common_distributions
+
+# Fit distributions using the fitter package
+fitter_results = {}
+
+for column in numeric_columns:
+    column_data = numeric_columns[column].dropna()
+
+    # Initialize the Fitter
+    f = Fitter(column_data, distributions=get_common_distributions())
+    f.fit()
+
+    # Store the summary of best-fit results
+    fitter_results[column] = f.get_best()
+
+    # Plot the fitted distributions
+    f.summary()
+    plt.title(f"Best fitting distributions for {column}")
+    plt.show()
+
+# Print the best fitting distributions and parameters
+print("Best fitting distributions and parameters for each column:")
+for column, best_fit in fitter_results.items():
+    print(f"{column}: {best_fit}")
+
 distributions = ['norm', 'lognorm', 'expon', 'gamma', 'weibull_min']
 
 best_fit_results = {}
@@ -96,10 +125,35 @@ spearman_correlation = numeric_columns.corr(method='spearman')
 print(spearman_correlation)
 
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScalar
-scaler = StandardScalar()
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
 scaled_data = scaler.fit_transform(numeric_columns)
+
+# Create PCA instance and fit-transform the data
+pca = PCA(n_components=2)  # Specify the number of principal components
 principal_components = pca.fit_transform(scaled_data)
 
 pca_df = pd.DataFrame(data=principal_components, columns=['PC1', 'PC2'])
 plt.scatter(pca_df['PC1'], pca_df['PC2'])
+plt.show()
+
+# Get the PCA loadings
+loadings = pd.DataFrame(
+    pca.components_.T,  # Transpose to align features with components
+    columns=['PC1', 'PC2'],  # Name columns based on the number of PCs
+    index=numeric_columns.columns  # Original feature names as index
+)
+
+# Display the loadings
+print("Principal Component Loadings:")
+print(loadings)
+
+# from loadings, we see that a lot of the variance is caused by Q, W, H.
+# Channel geometry and flow is affecting the variance in data.
+
+print("Explained Variance Ratio:")
+print(pca.explained_variance_ratio_)
+
+# Cumulative explained variance
+print("Cumulative Explained Variance:")
+print(pca.explained_variance_ratio_.cumsum())
